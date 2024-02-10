@@ -1,75 +1,92 @@
-import logging
 from flask import Flask, request, jsonify
 import threading
 import uuid
-import main  # Ensure this is correctly pointing to your module
-
-# Setup basic logging
-logging.basicConfig(level=logging.INFO)
+import main  # Ensure your scraping script is correctly referenced
 
 app = Flask(__name__)
 
-# Stores task metadata including status
-task_metadata = {}
-lock = threading.Lock()
+# Dictionaries to store ongoing tasks and their results
+ongoing_tasks = {}
+task_results = {}
 
-def update_task_state(task_id, status, result=None):
-    """Safely update the task state."""
-    with lock:
-        task_metadata[task_id]['status'] = status
-        if result is not None:
-            task_metadata[task_id]['result'] = result
-
-def run_task(func, *args, task_id):
-    """Function to run the task in a new thread, handling updates."""
+def scrape_yellow_pages_task(searchterm, location, leadid, task_id):
     try:
-        # Assuming the task function returns an iterable for results
-        result = list(func(*args))
-        status = "completed" if result else "completed, no result"
-        update_task_state(task_id, status, result=result)
+        result = []
+        for progress_update in main.scrape_yellow_pages(searchterm, location, leadid):
+            if progress_update is not None:
+                result.append(progress_update)
+        if not result:  # No data was found
+            task_results[task_id] = "No data found."
+        else:
+            task_results[task_id] = result
     except Exception as e:
-        logging.exception("Task execution failed.")
-        update_task_state(task_id, "failed", str(e))
-    finally:
-        logging.info(f"Task {task_id} completed.")
+        task_results[task_id] = f"Error: {str(e)}"
+    print(f"Scraping task {task_id} completed. Result: {task_results[task_id]}")
 
-@app.route('/start_task', methods=['POST'])
-def start_task():
+def find_contacts_task(website_url, task_id):
+    try:
+        result = []
+        for progress_update in main.find_contacts(website_url):
+            if progress_update is not None:
+                result.append(progress_update)
+        if not result:  # No data was found
+            task_results[task_id] = "No data found."
+        else:
+            task_results[task_id] = result
+    except Exception as e:
+        task_results[task_id] = f"Error: {str(e)}"
+    print(f"Contact finding task for {task_id} completed. Result: {task_results[task_id]}")
+
+@app.route('/company', methods=['POST'])
+def company():
     data = request.json
-    task_type = data.get('task_type')
+    searchterm = data.get('searchterm')
+    location = data.get('location')
+    leadid = data.get('leadid')
+
+    if not all([searchterm, location, leadid]):
+        return jsonify({"error": "Missing parameters"}), 400
+
     task_id = str(uuid.uuid4())
+    scraping_thread = threading.Thread(target=scrape_yellow_pages_task, args=(searchterm, location, leadid, task_id))
+    scraping_thread.start()
 
-    # Initialize task state before starting the thread
-    with lock:
-        task_metadata[task_id] = {'status': 'processing', 'result': None}
+    ongoing_tasks[task_id] = scraping_thread
+    print(f"Started scraping task with ID: {task_id}")
 
-    if task_type == 'scrape_yellow_pages':
-        searchterm = data.get('searchterm')
-        location = data.get('location')
-        leadid = data.get('leadid')
-        if not all([searchterm, location, leadid]):
-            return jsonify({"error": "Missing parameters for scraping task"}), 400
-        thread = threading.Thread(target=run_task, args=(main.scrape_yellow_pages, searchterm, location, leadid), kwargs={"task_id": task_id})
-    elif task_type == 'find_contacts':
-        website_url = data.get('website_url')
-        if not website_url:
-            return jsonify({"error": "Missing website URL for contact finding task"}), 400
-        thread = threading.Thread(target=run_task, args=(main.find_contacts, website_url), kwargs={"task_id": task_id})
-    else:
-        return jsonify({"error": "Invalid task type specified"}), 400
+    return jsonify({"task_id": task_id, "message": "Scraping task started."}), 202
 
-    thread.start()
+@app.route('/contacts', methods=['POST'])
+def contacts():
+    data = request.json
+    website_url = data.get('website')
 
-    return jsonify({"message": "Task started successfully", "task_id": task_id}), 202
+    if not website_url:
+        return jsonify({"error": "Missing website URL"}), 400
+
+    task_id = str(uuid.uuid4())
+    contacts_thread = threading.Thread(target=find_contacts_task, args=(website_url, task_id))
+    contacts_thread.start()
+
+    ongoing_tasks[task_id] = contacts_thread
+    print(f"Started contact finding task with ID: {task_id}")
+
+    return jsonify({"task_id": task_id, "message": "Contact finding task started."}), 202
 
 @app.route('/task_status/<task_id>', methods=['GET'])
 def task_status(task_id):
-    with lock:
-        if task_id not in task_metadata:
-            return jsonify({"error": "Task not found."}), 404
-        task_info = task_metadata[task_id]
+    if task_id not in task_results:
+        return jsonify({"status": "Task not found or still in progress..."}), 202
 
-    return jsonify({"task_id": task_id, "status": task_info["status"], "result": task_info.get("result", "N/A")}), 200
+    task_result = task_results[task_id]
+    if isinstance(task_result, list):
+        return jsonify({"status": "Task completed successfully.", "result": task_result}), 200
+    elif "No data found" in task_result:
+        return jsonify({"status": "Task completed with no data."}), 404
+    elif "Error" in task_result:
+        return jsonify({"status": "Task completed with error.", "error": task_result}), 500
+    else:
+        return jsonify({"status": "Task in progress..."}), 202
 
 if __name__ == '__main__':
     app.run(debug=True)
