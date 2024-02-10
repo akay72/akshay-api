@@ -5,82 +5,51 @@ import uuid
 
 app = Flask(__name__)
 
-# Dictionary to store ongoing tasks and their results
+# Updated dictionaries to store task states along with results
 ongoing_tasks = {}
-task_results = {}
+task_states = {}
 
 def scrape_yellow_pages_task(searchterm, location, leadid, task_id):
+    # Initialize task state
+    task_states[task_id] = {"status": "processing", "result": None}
     result = []
     for progress_update in main.scrape_yellow_pages(searchterm, location, leadid):
         result.append(progress_update)
-    task_results[task_id] = result
+    if result:
+        task_states[task_id] = {"status": "completed", "result": result}
+    else:
+        task_states[task_id] = {"status": "completed", "result": "no result"}
     print(f"Scraping task {task_id} completed.")
     print(f"Result: {result}")
 
 def find_contacts_task(website_url, task_id):
+    # Initialize task state
+    task_states[task_id] = {"status": "processing", "result": None}
     result = []
     for progress_update in main.find_contacts(website_url):
         result.append(progress_update)
-    task_results[task_id] = result
+    if result:
+        task_states[task_id] = {"status": "completed", "result": result}
+    else:
+        task_states[task_id] = {"status": "completed", "result": "no result"}
     print(f"Contact finding task for {task_id} completed.")
     print(f"Result: {result}")
 
-@app.route('/company', methods=['POST'])
-def company():
-    data = request.json
-    searchterm = data.get('searchterm')
-    location = data.get('location')
-    leadid = data.get('leadid')
-
-    if not all([searchterm, location, leadid]):
-        return jsonify({"error": "Missing parameters"}), 200
-
-    # Generate a unique task ID
-    task_id = str(uuid.uuid4())
-
-    # Start the scraping task in a separate thread
-    scraping_thread = threading.Thread(target=scrape_yellow_pages_task, args=(searchterm, location, leadid, task_id))
-    scraping_thread.start()
-
-    # Store the task ID and associated thread in a dictionary
-    ongoing_tasks[task_id] = scraping_thread
-    print(f"Started scraping task with ID: {task_id}")
-
-    # Return the task ID as a response
-    return jsonify({"task_id": task_id, "message": "Scraping task started."}), 200
-
-@app.route('/contacts', methods=['POST'])
-def contacts():
-    data = request.json
-    website_url = data.get('website')
-
-    if not website_url:
-        return jsonify({"error": "Missing website URL"}), 200
-
-    # Generate a unique task ID
-    task_id = str(uuid.uuid4())
-
-    # Start the contact finding task in a separate thread
-    contacts_thread = threading.Thread(target=find_contacts_task, args=(website_url, task_id))
-    contacts_thread.start()
-
-    # Store the task ID and associated thread in a dictionary
-    ongoing_tasks[task_id] = contacts_thread
-    print(f"Started contact finding task with ID: {task_id}")
-
-    # Return the task ID as a response
-    return jsonify({"task_id": task_id, "message": "Contact finding task started."}), 200
-
 @app.route('/task_status/<task_id>', methods=['GET'])
 def task_status(task_id):
-    if task_id not in task_results:
-        return jsonify({"error": "Task not found."}), 200
+    if task_id not in task_states:
+        return jsonify({"status": "error", "message": "Task not found."}), 404
 
-    task_result = task_results[task_id]
-    if isinstance(task_result, list):
-        return jsonify({"status": "Task completed.", "result": task_result}), 200
-    else:
-        return jsonify({"status": "Task in progress..."}), 200
+    task_state = task_states[task_id]
+    if task_state["status"] == "processing":
+        return jsonify({"status": "success", "task": "processing"}), 200
+    elif task_state["status"] == "completed":
+        if task_state["result"] == "no result":
+            return jsonify({"status": "success", "task": "completed", "message": "No result"}), 200
+        else:
+            return jsonify({"status": "success", "task": "completed", "result": task_state["result"]}), 200
+
+# The rest of your Flask app code remains the same
 
 if __name__ == '__main__':
     app.run(debug=True)
