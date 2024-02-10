@@ -1,18 +1,15 @@
 from flask import Flask, request, jsonify
 import threading
-import main  # Make sure this script includes scrape_yellow_pages and find_contacts functions
+import main  # Make sure this script includes functions scrape_yellow_pages and find_contacts
 import uuid
 
 app = Flask(__name__)
 
-# Updated dictionaries for task management and states
 ongoing_tasks = {}
 task_states = {}
 
 def scrape_yellow_pages_task(searchterm, location, leadid, task_id):
     try:
-        # Initialize task state
-        task_states[task_id] = {"status": "processing", "result": None}
         result = []
         for progress_update in main.scrape_yellow_pages(searchterm, location, leadid):
             result.append(progress_update)
@@ -25,8 +22,6 @@ def scrape_yellow_pages_task(searchterm, location, leadid, task_id):
 
 def find_contacts_task(website_url, task_id):
     try:
-        # Initialize task state
-        task_states[task_id] = {"status": "processing", "result": None}
         result = []
         for progress_update in main.find_contacts(website_url):
             result.append(progress_update)
@@ -48,11 +43,11 @@ def company():
         return jsonify({"error": "Missing parameters"}), 400
 
     task_id = str(uuid.uuid4())
+    task_states[task_id] = {"status": "processing", "result": None}  # Immediate status update
     scraping_thread = threading.Thread(target=scrape_yellow_pages_task, args=(searchterm, location, leadid, task_id))
     scraping_thread.start()
 
     ongoing_tasks[task_id] = scraping_thread
-    task_states[task_id] = {"status": "processing", "result": None}
     
     return jsonify({"task_id": task_id, "message": "Scraping task started."}), 202
 
@@ -65,11 +60,11 @@ def contacts():
         return jsonify({"error": "Missing website URL"}), 400
 
     task_id = str(uuid.uuid4())
+    task_states[task_id] = {"status": "processing", "result": None}  # Immediate status update
     contacts_thread = threading.Thread(target=find_contacts_task, args=(website_url, task_id))
     contacts_thread.start()
 
     ongoing_tasks[task_id] = contacts_thread
-    task_states[task_id] = {"status": "processing", "result": None}
     
     return jsonify({"task_id": task_id, "message": "Contact finding task started."}), 202
 
