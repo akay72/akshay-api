@@ -21,7 +21,7 @@ def generate_email():
     try:
         # Generate the email content directly without using a separate thread
         email_content = generate_outreach_email(lead_name, lead_website)
-        return jsonify({"task_id": str(uuid.uuid4()), "email_content": email_content, "message": "Email generation task completed."}), 200
+        return jsonify({"email_content": email_content, "message": "Email generation task completed."}), 200
     except Exception as e:
         return jsonify({"error": f"An error occurred during email generation: {str(e)}"}), 500
 
