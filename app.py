@@ -2,12 +2,37 @@ from flask import Flask, request, jsonify
 import threading
 import uuid
 import main  # Ensure your scraping script is correctly referenced
-
+from email_content import generate_outreach_email
 app = Flask(__name__)
 
 # Dictionaries to store ongoing tasks and their results
 ongoing_tasks = {}
 task_results = {}
+
+def email_generation_task(lead_name, lead_website, task_id):
+    try:
+        email_content = generate_outreach_email(lead_name, lead_website)
+        task_results[task_id] = email_content
+    except Exception as e:
+        task_results[task_id] = f"Error: {str(e)}"
+    print(f"Email generation task {task_id} completed. Result: {task_results[task_id]}")
+
+@app.route('/generate_email', methods=['POST'])
+def generate_email():
+    data = request.json
+    lead_name = data.get('lead_name')
+    lead_website = data.get('lead_website')
+
+    if not lead_name or not lead_website:
+        return jsonify({"error": "Missing lead_name or lead_website parameters"}), 200
+
+    task_id = str(uuid.uuid4())
+    thread = threading.Thread(target=email_generation_task, args=(lead_name, lead_website, task_id))
+    thread.start()
+
+    ongoing_tasks[task_id] = thread
+    return jsonify({"task_id": task_id, "message": "Email generation task started."}), 200
+
 
 def scrape_yellow_pages_task(searchterm, location, leadid, task_id):
     try:
