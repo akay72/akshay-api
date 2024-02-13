@@ -1,9 +1,10 @@
 import openai
+import os
 # Load configuration from the JSON file
 def generate_outreach_email(lead_name, lead_website):
     # Set your OpenAI API key here. Consider using environment variables for production
-    openai.api_key = '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'
-
+    openai.api_key = os.getenv('OPENAI_API_KEY')
+    
     prompt = f"""Lead information: ["{lead_name}","{lead_website}"]
                 Product/service details: "National Utilisource is one of the leading North American providers of top-rated energy supply to consumers looking for large-scale energy consumption."""
     messages = [
