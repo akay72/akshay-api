@@ -9,14 +9,6 @@ app = Flask(__name__)
 ongoing_tasks = {}
 task_results = {}
 
-def email_generation_task(lead_name, lead_website, task_id):
-    try:
-        email_content = generate_outreach_email(lead_name, lead_website)
-        task_results[task_id] = email_content
-    except Exception as e:
-        task_results[task_id] = f"Error: {str(e)}"
-    print(f"Email generation task {task_id} completed. Result: {task_results[task_id]}")
-
 @app.route('/generate_email', methods=['POST'])
 def generate_email():
     data = request.json
@@ -24,14 +16,15 @@ def generate_email():
     lead_website = data.get('lead_website')
 
     if not lead_name or not lead_website:
-        return jsonify({"error": "Missing lead_name or lead_website parameters"}), 200
+        return jsonify({"error": "Missing lead_name or lead_website parameters"}), 400
 
-    task_id = str(uuid.uuid4())
-    thread = threading.Thread(target=email_generation_task, args=(lead_name, lead_website, task_id))
-    thread.start()
+    try:
+        # Generate the email content directly without using a separate thread
+        email_content = generate_outreach_email(lead_name, lead_website)
+        return jsonify({"task_id": str(uuid.uuid4()), "email_content": email_content, "message": "Email generation task completed."}), 200
+    except Exception as e:
+        return jsonify({"error": f"An error occurred during email generation: {str(e)}"}), 500
 
-    ongoing_tasks[task_id] = thread
-    return jsonify({"task_id": task_id, "message": "Email generation task started."}), 200
 
 
 def scrape_yellow_pages_task(searchterm, location, leadid, task_id):
