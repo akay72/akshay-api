@@ -100,9 +100,10 @@ def contacts():
 
 @app.route('/task_status/<task_id>', methods=['GET'])
 def task_status(task_id):
-    if task_id not in task_results:
-        return jsonify({"status": "Task not found or still in progress..."}), 202
-
+    if task_id not in task_results and task_id not in ongoing_tasks:
+        return jsonify({"status": "Task not found."}), 404
+    elif task_id in ongoing_tasks and task_id not in task_results:
+        return jsonify({"status": "Task still in progress..."}), 202
     task_result = task_results[task_id]
     if isinstance(task_result, list):
         return jsonify({"status": "Task completed successfully.", "result": task_result}), 200
@@ -110,8 +111,7 @@ def task_status(task_id):
         return jsonify({"status": "Task completed with no data."}), 404
     elif "Error" in task_result:
         return jsonify({"status": "Task completed with error.", "error": task_result}), 500
-    else:
-        return jsonify({"status": "Task in progress..."}), 202
+
 
 if __name__ == '__main__':
     app.run(debug=True)
