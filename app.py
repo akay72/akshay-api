@@ -100,17 +100,29 @@ def contacts():
 
 @app.route('/task_status/<task_id>', methods=['GET'])
 def task_status(task_id):
+    # Check if task ID is not found in both task_results and ongoing_tasks
     if task_id not in task_results and task_id not in ongoing_tasks:
         return jsonify({"status": "Task not found."}), 404
+    # Check if task is still in ongoing_tasks but not yet in task_results
     elif task_id in ongoing_tasks and task_id not in task_results:
         return jsonify({"status": "Task still in progress..."}), 202
-    task_result = task_results[task_id]
-    if isinstance(task_result, list):
+
+    # Ensure task_result is available before accessing it
+    task_result = task_results.get(task_id, None)
+    if task_result is None:
+        # This block should theoretically never be reached due to the above checks
+        # But it's here as a safeguard
+        return jsonify({"status": "Task still in progress or not found."}), 202
+    elif isinstance(task_result, list):
         return jsonify({"status": "Task completed successfully.", "result": task_result}), 200
     elif "No data found" in task_result:
         return jsonify({"status": "Task completed with no data."}), 404
     elif "Error" in task_result:
         return jsonify({"status": "Task completed with error.", "error": task_result}), 500
+    else:
+        # A catch-all return statement as a last resort, should not be reached
+        return jsonify({"status": "Unknown task status.", "result": task_result}), 500
+
 
 
 if __name__ == '__main__':
