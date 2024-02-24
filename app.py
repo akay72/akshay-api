@@ -7,6 +7,9 @@ import threading
 import main  # Import your scraping script
 import uuid
 
+import collections
+collections.Iterable = collections.abc.Iterable
+
 app = Flask(__name__)
 
 # Enable CORS
