@@ -6,7 +6,7 @@ import json
 import threading
 import main  # Import your scraping script
 import uuid
-
+from email_content import generate_outreach_email
 import collections
 collections.Iterable = collections.abc.Iterable
 
