@@ -41,22 +41,25 @@ def update_task_status_and_result(task_id, status, result=None):
         db.session.commit()
 
 def scrape_yellow_pages_task(searchterm, location, leadid, task_id):
-    try:
-        result = []
-        for progress_update in main.scrape_yellow_pages(searchterm, location, leadid):
-            result.append(progress_update)
-        update_task_status_and_result(task_id, 'success', result)
-    except Exception as e:
-        update_task_status_and_result(task_id, 'error', {'message': str(e)})
+    with app.app_context():  # Push the application context
+        try:
+            result = []
+            for progress_update in main.scrape_yellow_pages(searchterm, location, leadid):
+                result.append(progress_update)
+            update_task_status_and_result(task_id, 'success', result)
+        except Exception as e:
+            update_task_status_and_result(task_id, 'error', {'message': str(e)})
 
 def find_contacts_task(website_url, task_id):
-    try:
-        result = []
-        for progress_update in main.find_contacts(website_url):
-            result.append(progress_update)
-        update_task_status_and_result(task_id, 'success', result)
-    except Exception as e:
-        update_task_status_and_result(task_id, 'error', {'message': str(e)})
+    with app.app_context():  # Push the application context
+        try:
+            result = []
+            for progress_update in main.find_contacts(website_url):
+                result.append(progress_update)
+            update_task_status_and_result(task_id, 'success', result)
+        except Exception as e:
+            update_task_status_and_result(task_id, 'error', {'message': str(e)})
+
 
 @app.route('/company', methods=['POST'])
 def company():
