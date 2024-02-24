@@ -1,21 +1,16 @@
 from flask import Flask, request, jsonify
+from flask_sqlalchemy import SQLAlchemy
+from flask_cors import CORS
+import os
+import json
 import threading
 import main  # Import your scraping script
 import uuid
-from email_content import generate_outreach_email
-from flask_cors import CORS
-from flask_sqlalchemy import SQLAlchemy
-import os
-import json
 
 app = Flask(__name__)
 
 # Enable CORS
-CORS(app, resources={r"/*": {
-    "origins": "*",
-    "allow_headers": ["Content-Type", "Authorization", "X-Requested-With"],
-    "methods": ["GET", "POST", "PUT", "DELETE"]
-}})
+CORS(app)
 
 # Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL').replace("://", "ql://", 1)  # Heroku DATABASE_URL fix
@@ -33,12 +28,6 @@ class Task(db.Model):
         self.task_id = task_id
         self.status = status
         self.result = result
-
-def create_tables():
-    with app.app_context():
-        db.create_all()
-
-create_tables()
 
 def update_task_status_and_result(task_id, status, result=None):
     task = Task.query.filter_by(task_id=task_id).first()
@@ -74,7 +63,7 @@ def company():
     leadid = data.get('leadid')
 
     if not all([searchterm, location, leadid]):
-        return jsonify({"error": "Missing parameters"}), 200
+        return jsonify({"error": "Missing parameters"}), 400
 
     task_id = str(uuid.uuid4())
     new_task = Task(task_id=task_id, status='in progress')
@@ -90,7 +79,7 @@ def contacts():
     website_url = data.get('website')
 
     if not website_url:
-        return jsonify({"error": "Missing website URL"}), 200
+        return jsonify({"error": "Missing website URL"}), 400
 
     task_id = str(uuid.uuid4())
     new_task = Task(task_id=task_id, status='in progress')
@@ -110,4 +99,4 @@ def task_status(task_id):
         return jsonify({"error": "Task not found."}), 404
 
 if __name__ == '__main__':
-    app.run(debug=True, use_reloader=False)
+    app.run(debug=True)
