@@ -89,10 +89,10 @@ def company():
     leadid = data.get('leadid')
 
     if not all([searchterm, location, leadid]):
-        return jsonify({"error": "Missing parameters"}), 400
+        return jsonify({"error": "Missing parameters"}), 200
 
     task_id = str(uuid.uuid4())
-    new_task = Task(task_id=task_id, status='in progress')
+    new_task = Task(task_id=task_id, status='progressing')
     db.session.add(new_task)
     db.session.commit()
 
@@ -105,10 +105,10 @@ def contacts():
     website_url = data.get('website')
 
     if not website_url:
-        return jsonify({"error": "Missing website URL"}), 400
+        return jsonify({"error": "Missing website URL"}), 200
 
     task_id = str(uuid.uuid4())
-    new_task = Task(task_id=task_id, status='in progress')
+    new_task = Task(task_id=task_id, status='progressing')
     db.session.add(new_task)
     db.session.commit()
 
@@ -122,7 +122,7 @@ def task_status(task_id):
         result = json.loads(task.result) if task.result else None  # Deserialize result from JSON string
         return jsonify({"task_id": task.task_id, "status": task.status, "result": result}), 200
     else:
-        return jsonify({"error": "Task not found."}), 404
+        return jsonify({"error": "Task not found."}), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
