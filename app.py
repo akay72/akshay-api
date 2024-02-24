@@ -27,16 +27,18 @@ class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.String(36), unique=True, nullable=False)
     status = db.Column(db.String(20), nullable=False)
-    result = db.Column(db.Text, nullable=True)  # Store result as JSON string
+    result = db.Column(db.Text, nullable=True)
 
     def __init__(self, task_id, status, result=None):
         self.task_id = task_id
         self.status = status
         self.result = result
 
-@app.before_first_request
 def create_tables():
-    db.create_all()
+    with app.app_context():
+        db.create_all()
+
+create_tables()
 
 def update_task_status_and_result(task_id, status, result=None):
     task = Task.query.filter_by(task_id=task_id).first()
