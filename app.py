@@ -40,6 +40,9 @@ def update_task_status_and_result(task_id, status, result=None):
             task.result = json.dumps(result)  # Serialize result to JSON string
         db.session.commit()
 
+
+
+
 def scrape_yellow_pages_task(searchterm, location, leadid, task_id):
     with app.app_context():  # Push the application context
         try:
@@ -60,6 +63,23 @@ def find_contacts_task(website_url, task_id):
         except Exception as e:
             update_task_status_and_result(task_id, 'error', {'message': str(e)})
 
+
+
+@app.route('/generate_email', methods=['POST'])
+def generate_email():
+    data = request.json
+    lead_name = data.get('lead_name')
+    lead_website = data.get('lead_website')
+
+    if not lead_name or not lead_website:
+        return jsonify({"error": "Missing lead_name or lead_website parameters"}), 200
+
+    try:
+        # Generate the email content directly without using a separate thread
+        email_content = generate_outreach_email(lead_name, lead_website)
+        return jsonify({"email_content": email_content, "status": "success"}), 200
+    except Exception as e:
+        return jsonify({"error": f"An error occurred during email generation: {str(e)}"}), 200
 
 @app.route('/company', methods=['POST'])
 def company():
